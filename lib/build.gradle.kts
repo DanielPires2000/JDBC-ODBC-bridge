@@ -22,12 +22,6 @@ repositories {
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.jna)
-
-    // This dependency is exported to consumers, that is to say found on their compile classpath.
-    api(libs.commons.math3)
-
-    // This dependency is used internally, and not exposed to consumers on their own compile classpath.
-    implementation(libs.guava)
 }
 
 testing {
@@ -51,4 +45,15 @@ sourceSets {
     main {
         kotlin.setSrcDirs(listOf("src/main/kotlin"))
     }
+}
+
+// Removemos o "Fat JAR" para evitar corromper a DLL nativa do JNA.
+// Em vez disso, copiamos as dependências para uma pasta, e o utilizador adiciona ambas as pastas no DBeaver.
+tasks.register<Copy>("copyDependencies") {
+    from(configurations.runtimeClasspath)
+    into(layout.buildDirectory.dir("libs/deps"))
+}
+
+tasks.named("build") {
+    dependsOn("copyDependencies")
 }
