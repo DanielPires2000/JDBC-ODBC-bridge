@@ -7,15 +7,13 @@
  */
 
 plugins {
-    // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
     alias(libs.plugins.kotlin.jvm)
-
-    // Apply the java-library plugin for API and implementation separation.
     `java-library`
 }
 
+version = project.findProperty("version") ?: "1.0.0-SNAPSHOT"
+
 repositories {
-    // Use Maven Central for resolving dependencies.
     mavenCentral()
 }
 
@@ -24,36 +22,62 @@ dependencies {
     implementation(libs.jna)
 }
 
-testing {
-    suites {
-        // Configure the built-in test suite
-        val test by getting(JvmTestSuite::class) {
-            // Use JUnit Jupiter test framework
-            useJUnitJupiter("6.0.1")
-        }
-    }
-}
-
-// Apply a specific Java toolchain to ease working on different environments.
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
-sourceSets {
-    main {
-        kotlin.setSrcDirs(listOf("src/main/kotlin"))
+val currentVersion = version.toString()
+val propFileRelativePath = "pt/daniel/odbc/version.properties"
+
+tasks.register("generateVersionProperties") {
+    val outputDir = layout.buildDirectory.dir("generated/resources")
+    inputs.property("version", currentVersion)
+    outputs.dir(outputDir)
+    doLast {
+        val propFile = outputDir.get().file(propFileRelativePath).asFile
+        propFile.parentFile.mkdirs()
+        propFile.writeText("version=$currentVersion")
     }
 }
 
-// Removemos o "Fat JAR" para evitar corromper a DLL nativa do JNA.
-// Em vez disso, copiamos as dependências para uma pasta, e o utilizador adiciona ambas as pastas no DBeaver.
+
+
+sourceSets {
+    main {
+        kotlin.setSrcDirs(listOf("src/main/kotlin"))
+        resources.srcDir(tasks.named("generateVersionProperties"))
+    }
+}
+
+
+
+tasks.register<Jar>("fatJar") {
+    archiveClassifier.set("all")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
+    // Inclui as classes do projeto
+    from(sourceSets.main.get().output)
+    
+    // Inclui todas as dependências (Kotlin, JNA, etc.)
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }) {
+        exclude("META-INF/*.SF")
+        exclude("META-INF/*.DSA")
+        exclude("META-INF/*.RSA")
+    }
+
+    manifest {
+        attributes["Implementation-Title"] = "JDBC-ODBC Bridge Fat JAR"
+        attributes["Implementation-Version"] = project.version
+    }
+}
+
 tasks.register<Copy>("copyDependencies") {
     from(configurations.runtimeClasspath)
     into(layout.buildDirectory.dir("libs/deps"))
 }
 
 tasks.named("build") {
-    dependsOn("copyDependencies")
+    dependsOn("copyDependencies", "fatJar")
 }
