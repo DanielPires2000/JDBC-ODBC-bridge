@@ -38,9 +38,7 @@ class OdbcResultSet(
         columnMetadata.mapIndexed { index, col -> col.name.uppercase() to (index + 1) }.toMap()
     }
 
-    private companion object {
-        const val DATA_BUFFER_SIZE = 4096
-    }
+
 
     // --- Navegação ---
 
@@ -69,7 +67,7 @@ class OdbcResultSet(
             val res = api.SQLGetData(
                 stmtHandle, i.toShort(),
                 OdbcApi.SQL_C_CHAR.toShort(),
-                buffer, DATA_BUFFER_SIZE.toLong(), indicator.pointer
+                buffer, DATA_BUFFER_SIZE.toLong(), indicator
             )
 
             if (res.toInt() == OdbcApi.SQL_NO_DATA) {
@@ -182,9 +180,41 @@ class OdbcResultSet(
     // --- Metadata ---
 
     override fun findColumn(columnLabel: String?): Int {
-        requireNotNull(columnLabel) { "Column label não pode ser nulo" }
-        return columnNames[columnLabel.uppercase()] ?:
-            throw SQLException("Coluna '$columnLabel' não encontrada")
+        requireNotNull(columnLabel) { "Column label nao pode ser nulo" }
+        val key = columnLabel.uppercase()
+        // Tentar nome directo
+        columnNames[key]?.let { return it }
+        // Tentar alias ODBC 2.0 <-> ODBC 3.0 / JDBC
+        COLUMN_ALIASES[key]?.let { alias ->
+            columnNames[alias]?.let { return it }
+        }
+        throw SQLException("Coluna '$columnLabel' nao encontrada")
+    }
+
+    companion object {
+        private const val DATA_BUFFER_SIZE = 4096
+
+        /**
+         * Mapa de aliases entre nomes ODBC 2.0 (usados por drivers legados)
+         * e nomes ODBC 3.0 / JDBC (esperados pelo DBeaver e outras ferramentas).
+         * Bidirecional: funciona tanto se o driver usar nomes antigos como novos.
+         */
+        private val COLUMN_ALIASES = mapOf(
+            // ODBC 3.0 / JDBC -> ODBC 2.0
+            "TABLE_CAT" to "TABLE_QUALIFIER",
+            "TABLE_SCHEM" to "TABLE_OWNER",
+            "COLUMN_SIZE" to "PRECISION",
+            "BUFFER_LENGTH" to "LENGTH",
+            "DECIMAL_DIGITS" to "SCALE",
+            "NUM_PREC_RADIX" to "RADIX",
+            // ODBC 2.0 -> ODBC 3.0 / JDBC (reverso)
+            "TABLE_QUALIFIER" to "TABLE_CAT",
+            "TABLE_OWNER" to "TABLE_SCHEM",
+            "PRECISION" to "COLUMN_SIZE",
+            "LENGTH" to "BUFFER_LENGTH",
+            "SCALE" to "DECIMAL_DIGITS",
+            "RADIX" to "NUM_PREC_RADIX"
+        )
     }
 
     override fun getMetaData(): ResultSetMetaData = OdbcResultSetMetaData(columnMetadata)
