@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*' # Dispara para tags que começam com 'v', ex: v1.0.1
 
+permissions:
+  contents: write # Obrigatório para criar releases
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,7 +37,7 @@ jobs:
       id: create_release
       uses: softprops/action-gh-release@v2
       with:
-        files: lib/build/libs/lib-all.jar
+        files: lib/build/libs/*.jar
         name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false
