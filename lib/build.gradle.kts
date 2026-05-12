@@ -9,6 +9,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     `java-library`
+    `maven-publish`
 }
 
 version = project.findProperty("version") ?: "1.0.0-SNAPSHOT"
@@ -81,3 +82,16 @@ tasks.register<Copy>("copyDependencies") {
 tasks.named("build") {
     dependsOn("copyDependencies", "fatJar")
 }
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = "pt.daniel.odbc"
+            artifactId = "jdbc-odbc-bridge"
+            version = currentVersion
+
+            // Publica o fatJar como o arquivo principal
+            artifact(tasks.named("fatJar"))
+        }
+    }
+}
