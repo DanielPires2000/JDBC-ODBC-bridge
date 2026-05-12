@@ -40,17 +40,29 @@ class OdbcDriver internal constructor(
 
     companion object {
         private const val URL_PREFIX = "jdbc:odbc:"
-
         private val log: Logger = Logger.getLogger(OdbcDriver::class.java.name)
 
-        /**
-         * Auto-registo no DriverManager quando a classe é carregada (padrão JDBC).
-         * Graças ao lazy loading, este registo nunca falha — o driver está sempre
-         * disponível para responder a acceptsURL(), mesmo sem ODBC instalado.
-         */
+        private val VERSION_STR: String by lazy {
+            runCatching {
+                val props = java.util.Properties()
+                OdbcDriver::class.java.getResourceAsStream("version.properties")?.use { 
+                    props.load(it)
+                }
+                props.getProperty("version") ?: "0.0.1-SNAPSHOT"
+            }.getOrElse { "0.0.1-SNAPSHOT" }
+        }
+
+        private val VERSION_MAJOR: Int by lazy {
+            VERSION_STR.split(".").getOrNull(0)?.toIntOrNull() ?: 0
+        }
+
+        private val VERSION_MINOR: Int by lazy {
+            VERSION_STR.split(".").getOrNull(1)?.toIntOrNull() ?: 0
+        }
+
         init {
             DriverManager.registerDriver(OdbcDriver())
-            log.fine("OdbcDriver registado no DriverManager")
+            log.fine("OdbcDriver registado no DriverManager (Versao $VERSION_STR)")
         }
     }
 
@@ -128,11 +140,12 @@ class OdbcDriver internal constructor(
         return arrayOf(charsetProp)
     }
 
-    override fun getMajorVersion(): Int = 1
-    override fun getMinorVersion(): Int = 0
+    override fun getMajorVersion(): Int = VERSION_MAJOR
+    override fun getMinorVersion(): Int = VERSION_MINOR
     override fun jdbcCompliant(): Boolean = false
 
     override fun getParentLogger(): Logger = log
+
 
     // --- Helpers privados com tratamento de erros ---
 
