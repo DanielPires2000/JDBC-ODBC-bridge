@@ -145,6 +145,7 @@ interface OdbcApi : Library {
         strLenOrIndPtr: Pointer?
     ): Short
     fun SQLCloseCursor(hstmt: Pointer?): Short
+    fun SQLCancel(hstmt: Pointer?): Short
 
     // --- Result Set ---
     fun SQLFetch(hstmt: Pointer?): Short

@@ -98,7 +98,15 @@ class OdbcStatement(
     override fun setEscapeProcessing(enable: Boolean) {}
     override fun getQueryTimeout(): Int = 0
     override fun setQueryTimeout(seconds: Int) {}
-    override fun cancel() {}
+    override fun cancel() {
+        if (!closed) {
+            val result = api.SQLCancel(stmtHandle)
+            if (!OdbcApi.isSuccess(result)) {
+                // Não falhamos ruidosamente aqui, apenas registamos ou ignoramos,
+                // pois o comando pode já ter terminado.
+            }
+        }
+    }
     override fun getWarnings(): SQLWarning? = null
     override fun clearWarnings() {}
     override fun setCursorName(name: String?) {}
