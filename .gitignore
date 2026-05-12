@@ -1,0 +1,60 @@
+# =========================
+# Gradle
+# =========================
+.gradle/
+build/
+
+# Ignorar todos os JARs...
+*.jar
+*.war
+*.ear
+*.zip
+*.hpi
+*.jpi
+# ...EXCETO o wrapper do Gradle (Isto é muito importante!)
+!gradle/wrapper/gradle-wrapper.jar
+
+# =========================
+# Kotlin / Java
+# =========================
+.kotlin/
+out/
+bin/
+
+# =========================
+# IDEs e Editores
+# =========================
+# VS Code
+.vscode/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# =========================
+# Sistema Operativo
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs e Ficheiros Temporários
+# =========================
+*.log
+# Logs de crash da JVM (Vão acontecer muito ao mexer com memória nativa/ODBC!)
+hs_err_pid*.log
+replay_pid*.log
+core.*
+core
+
+# Ficheiros temporários de editores (Vim, etc)
+*.swp
+*.swo
+*~

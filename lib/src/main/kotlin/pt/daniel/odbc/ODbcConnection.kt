@@ -1,0 +1,128 @@
+package pt.daniel.odbc
+
+import pt.daniel.odbc.interop.OdbcApi
+import java.sql.*
+import java.util.Properties
+import java.util.concurrent.Executor
+
+/**
+ * Implementação de [Connection] que representa uma sessão ativa com uma fonte de dados ODBC.
+ *
+ * @param api              API nativa ODBC injetada (permite mocking em testes).
+ * @param envHandle        Handle do ambiente ODBC (SQL_HANDLE_ENV).
+ * @param connectionHandle Handle da conexão ODBC (SQL_HANDLE_DBC).
+ */
+class OdbcConnection(
+    private val api: OdbcApi,
+    private val envHandle: com.sun.jna.Pointer?,
+    private val connectionHandle: com.sun.jna.Pointer?
+) : Connection {
+
+    private var closed = false
+
+    // --- Métodos com lógica ODBC real ---
+
+    override fun createStatement(): Statement {
+        checkNotClosed()
+        val stmtPtr = com.sun.jna.ptr.PointerByReference()
+        val result = try {
+            api.SQLAllocHandle(OdbcApi.SQL_HANDLE_STMT.toShort(), connectionHandle, stmtPtr)
+        } catch (e: Exception) {
+            throw SQLException("Erro de comunicação ao criar Statement ODBC: ${e.message}", e)
+        }
+        if (result.toInt() !in listOf(OdbcApi.SQL_SUCCESS, OdbcApi.SQL_SUCCESS_WITH_INFO)) {
+            throw SQLException("ODBC não conseguiu alocar Statement (Código: $result)")
+        }
+        // Injeta a mesma instância de 'api' no Statement filho
+        return OdbcStatement(this, api, stmtPtr.value)
+    }
+
+    override fun close() {
+        if (!closed) {
+            try {
+                api.SQLDisconnect(connectionHandle)
+                api.SQLFreeHandle(OdbcApi.SQL_HANDLE_DBC.toShort(), connectionHandle)
+                api.SQLFreeHandle(OdbcApi.SQL_HANDLE_ENV.toShort(), envHandle)
+            } finally {
+                closed = true
+            }
+        }
+    }
+
+    override fun isClosed(): Boolean = closed
+
+    // --- Sobrescritas triviais ---
+
+    override fun createStatement(resultSetType: Int, resultSetConcurrency: Int): Statement = createStatement()
+    override fun createStatement(resultSetType: Int, resultSetConcurrency: Int, resultSetHoldability: Int): Statement = createStatement()
+
+    override fun nativeSQL(sql: String?): String? = sql
+    override fun setAutoCommit(autoCommit: Boolean) {}
+    override fun getAutoCommit(): Boolean = true
+    override fun commit() {}
+    override fun rollback() {}
+    override fun rollback(savepoint: Savepoint?) {}
+
+    override fun getMetaData(): DatabaseMetaData =
+        throw SQLFeatureNotSupportedException("DatabaseMetaData ainda não implementado")
+
+    override fun setReadOnly(readOnly: Boolean) {}
+    override fun isReadOnly(): Boolean = false
+    override fun setCatalog(catalog: String?) {}
+    override fun getCatalog(): String? = null
+    override fun setTransactionIsolation(level: Int) {}
+    override fun getTransactionIsolation(): Int = Connection.TRANSACTION_NONE
+    override fun getWarnings(): SQLWarning? = null
+    override fun clearWarnings() {}
+    override fun getTypeMap(): MutableMap<String, Class<*>> = mutableMapOf()
+    override fun setTypeMap(map: MutableMap<String, Class<*>>?) {}
+    override fun setHoldability(holdability: Int) {}
+    override fun getHoldability(): Int = ResultSet.CLOSE_CURSORS_AT_COMMIT
+
+    override fun setSavepoint(): Savepoint = throw SQLFeatureNotSupportedException()
+    override fun setSavepoint(name: String?): Savepoint = throw SQLFeatureNotSupportedException()
+    override fun releaseSavepoint(savepoint: Savepoint?) = throw SQLFeatureNotSupportedException()
+
+    override fun createClob(): Clob = throw SQLFeatureNotSupportedException()
+    override fun createBlob(): Blob = throw SQLFeatureNotSupportedException()
+    override fun createNClob(): NClob = throw SQLFeatureNotSupportedException()
+    override fun createSQLXML(): SQLXML = throw SQLFeatureNotSupportedException()
+
+    override fun isValid(timeout: Int): Boolean = !closed
+
+    override fun setClientInfo(name: String?, value: String?) {}
+    override fun setClientInfo(properties: Properties?) {}
+    override fun getClientInfo(name: String?): String? = null
+    override fun getClientInfo(): Properties = Properties()
+
+    override fun createArrayOf(typeName: String?, elements: Array<out Any>?): java.sql.Array =
+        throw SQLFeatureNotSupportedException()
+    override fun createStruct(typeName: String?, attributes: Array<out Any>?): Struct =
+        throw SQLFeatureNotSupportedException()
+
+    override fun prepareStatement(sql: String?): PreparedStatement = throw SQLFeatureNotSupportedException()
+    override fun prepareStatement(sql: String?, resultSetType: Int, resultSetConcurrency: Int): PreparedStatement = throw SQLFeatureNotSupportedException()
+    override fun prepareStatement(sql: String?, resultSetType: Int, resultSetConcurrency: Int, resultSetHoldability: Int): PreparedStatement = throw SQLFeatureNotSupportedException()
+    override fun prepareStatement(sql: String?, autoGeneratedKeys: Int): PreparedStatement = throw SQLFeatureNotSupportedException()
+    override fun prepareStatement(sql: String?, columnIndexes: IntArray?): PreparedStatement = throw SQLFeatureNotSupportedException()
+    override fun prepareStatement(sql: String?, columnNames: Array<out String>?): PreparedStatement = throw SQLFeatureNotSupportedException()
+
+    override fun prepareCall(sql: String?): CallableStatement = throw SQLFeatureNotSupportedException()
+    override fun prepareCall(sql: String?, resultSetType: Int, resultSetConcurrency: Int): CallableStatement = throw SQLFeatureNotSupportedException()
+    override fun prepareCall(sql: String?, resultSetType: Int, resultSetConcurrency: Int, resultSetHoldability: Int): CallableStatement = throw SQLFeatureNotSupportedException()
+
+    override fun setSchema(schema: String?) {}
+    override fun getSchema(): String? = null
+    override fun abort(executor: Executor?) {}
+    override fun setNetworkTimeout(executor: Executor?, milliseconds: Int) {}
+    override fun getNetworkTimeout(): Int = 0
+
+    override fun <T : Any?> unwrap(iface: Class<T>?): T = throw SQLFeatureNotSupportedException()
+    override fun isWrapperFor(iface: Class<*>?): Boolean = false
+
+    // --- Helper privado ---
+
+    private fun checkNotClosed() {
+        if (closed) throw SQLException("Connection já foi fechada")
+    }
+}
