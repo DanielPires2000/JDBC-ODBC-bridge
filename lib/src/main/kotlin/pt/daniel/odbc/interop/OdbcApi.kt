@@ -151,7 +151,7 @@ interface OdbcApi : Library {
     fun SQLGetData(
         hstmt: Pointer?, colNumber: Short,
         targetType: Short, targetValue: ByteArray?,
-        bufferLength: Long, strLenOrInd: Pointer?
+        bufferLength: Long, strLenOrInd: com.sun.jna.ptr.LongByReference?
     ): Short
     fun SQLNumResultCols(hstmt: Pointer?, columnCount: ShortByReference?): Short
     fun SQLDescribeCol(
