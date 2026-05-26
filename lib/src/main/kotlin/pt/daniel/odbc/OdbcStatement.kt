@@ -1,19 +1,16 @@
 package pt.daniel.odbc
 
 import com.sun.jna.Pointer
-import com.sun.jna.ptr.IntByReference
+import java.sql.*
 import pt.daniel.odbc.interop.OdbcApi
 import pt.daniel.odbc.interop.OdbcDiagnostics
-import java.sql.*
 
-/**
- * Implementação de [Statement] que executa SQL diretamente via ODBC.
- */
+/** Implementação de [Statement] que executa SQL diretamente via ODBC. */
 class OdbcStatement(
-    private val connection: OdbcConnection,
-    private val api: OdbcApi,
-    private val stmtHandle: Pointer?,
-    private val charset: java.nio.charset.Charset
+        private val connection: OdbcConnection,
+        private val api: OdbcApi,
+        private val stmtHandle: Pointer?,
+        private val charset: java.nio.charset.Charset
 ) : Statement {
 
     private var closed = false
@@ -58,7 +55,9 @@ class OdbcStatement(
             try {
                 lastResultSet?.close()
                 api.SQLFreeHandle(OdbcApi.SQL_HANDLE_STMT.toShort(), stmtHandle)
-            } finally { closed = true }
+            } finally {
+                closed = true
+            }
         }
     }
 
@@ -69,14 +68,37 @@ class OdbcStatement(
 
     private fun execDirect(sql: String?) {
         requireNotNull(sql) { "O SQL não pode ser nulo" }
-        val result = try {
-            api.SQLExecDirect(stmtHandle, sql, sql.length)
-        } catch (e: Exception) {
-            throw SQLException("Erro de comunicação ao executar SQL via ODBC: ${e.message}", e)
-        }
+        val result =
+                try {
+                    api.SQLExecDirect(stmtHandle, sql, sql.length)
+                } catch (e: Exception) {
+                    connection.markConnectionDead()
+                    throw SQLException(
+                            "Erro de comunicação ao executar SQL via ODBC: ${e.message}",
+                            "08S01",
+                            e
+                    )
+                }
         if (!OdbcApi.isSuccess(result)) {
-            val diagMsg = OdbcDiagnostics.getDiagMessage(api, OdbcApi.SQL_HANDLE_STMT.toShort(), stmtHandle)
-            throw SQLException("Erro ao executar SQL (Código: $result). $diagMsg", "HY000")
+            val diagMsg =
+                    OdbcDiagnostics.getDiagMessage(
+                            api,
+                            OdbcApi.SQL_HANDLE_STMT.toShort(),
+                            stmtHandle
+                    )
+            val sqlState =
+                    OdbcDiagnostics.getSqlState(
+                            api,
+                            OdbcApi.SQL_HANDLE_STMT.toShort(),
+                            stmtHandle
+                    ) ?: "HY000"
+
+            // Classe 08 = erros de comunicação (08S01, 08001, 08004, etc.)
+            if (sqlState.startsWith("08")) {
+                connection.markConnectionDead()
+            }
+
+            throw SQLException("Erro ao executar SQL (Código: $result). $diagMsg", sqlState)
         }
     }
 

@@ -1,6 +1,7 @@
 package pt.daniel.odbc
 
 import com.sun.jna.Pointer
+import com.sun.jna.ptr.IntByReference
 import pt.daniel.odbc.interop.OdbcApi
 import pt.daniel.odbc.interop.OdbcDiagnostics
 import java.sql.*
@@ -29,6 +30,10 @@ class OdbcConnection(
 
     private var closed = false
     private var autoCommit = true
+
+    /** Indica que a conexão nativa está morta (erro de comunicação detetado). */
+    @Volatile
+    private var connectionDead = false
 
     // --- Métodos com lógica ODBC real ---
 
@@ -128,7 +133,38 @@ class OdbcConnection(
     override fun prepareStatement(sql: String?, columnNames: Array<out String>?): PreparedStatement = prepareStatement(sql)
 
     override fun nativeSQL(sql: String?): String? = sql
-    override fun isValid(timeout: Int): Boolean = !closed
+
+    /**
+     * Verifica se a conexão ainda está ativa, consultando o driver ODBC nativo.
+     *
+     * Utiliza SQL_ATTR_CONNECTION_DEAD (ODBC 3.x) para perguntar ao driver
+     * se a conexão foi perdida. Se o driver não suportar o atributo,
+     * usa a flag interna [connectionDead] como fallback.
+     */
+    override fun isValid(timeout: Int): Boolean {
+        if (closed || connectionDead) return false
+        return try {
+            val dead = IntByReference()
+            val result = api.SQLGetConnectAttr(
+                connectionHandle,
+                OdbcApi.SQL_ATTR_CONNECTION_DEAD,
+                dead.pointer,
+                4, // sizeof(SQLUINTEGER)
+                null
+            )
+            if (OdbcApi.isSuccess(result)) {
+                val isDead = dead.value == OdbcApi.SQL_CD_TRUE
+                if (isDead) connectionDead = true
+                !isDead
+            } else {
+                // Driver não suporta SQL_ATTR_CONNECTION_DEAD — usar flag interna
+                !connectionDead
+            }
+        } catch (_: Exception) {
+            connectionDead = true
+            false
+        }
+    }
 
     // --- Stubs triviais ---
 
@@ -196,7 +232,19 @@ class OdbcConnection(
         return stmtPtr.value
     }
 
+    /**
+     * Marca a conexão como morta após um erro de comunicação.
+     * Chamado internamente pelos Statement/PreparedStatement quando
+     * detetam um SQLSTATE da classe 08 (connection exception).
+     */
+    internal fun markConnectionDead() {
+        connectionDead = true
+    }
+
     private fun checkNotClosed() {
-        if (closed) throw SQLException("Connection já foi fechada")
+        if (closed) throw SQLException("Connection já foi fechada", "08003")
+        if (connectionDead) throw SQLException(
+            "A conexão foi perdida (server disconnect). Reconecte.", "08S01"
+        )
     }
 }

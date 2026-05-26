@@ -63,6 +63,36 @@ object OdbcDiagnostics {
     }
 
     /**
+     * Extrai apenas o SQLSTATE do primeiro registo de diagnóstico ODBC.
+     *
+     * @return O SQLSTATE (ex: "08S01", "HY000") ou null se não houver diagnóstico.
+     */
+    fun getSqlState(api: OdbcApi, handleType: Short, handle: Pointer?): String? {
+        if (handle == null) return null
+
+        val sqlState = ByteArray(MAX_SQLSTATE_LENGTH)
+        val nativeError = IntByReference()
+        val messageText = ByteArray(MAX_MESSAGE_LENGTH.toInt())
+        val textLength = ShortByReference()
+
+        val result = try {
+            api.SQLGetDiagRec(
+                handleType, handle,
+                1,
+                sqlState, nativeError,
+                messageText, MAX_MESSAGE_LENGTH,
+                textLength
+            )
+        } catch (_: Exception) {
+            return null
+        }
+
+        if (!OdbcApi.isSuccess(result)) return null
+
+        return String(sqlState, Charsets.US_ASCII).trim('\u0000').ifBlank { null }
+    }
+
+    /**
      * Extrai todas as mensagens de diagnóstico ODBC disponíveis.
      * Útil para logging detalhado.
      *

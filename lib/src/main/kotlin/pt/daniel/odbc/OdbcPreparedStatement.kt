@@ -22,7 +22,7 @@ import java.util.*
  * Isto simplifica a implementação e funciona com a maioria das fontes de dados.
  */
 class OdbcPreparedStatement(
-    private val connection: Connection,
+    private val connection: OdbcConnection,
     private val api: OdbcApi,
     private val stmtHandle: Pointer?,
     private val sql: String,
@@ -241,10 +241,26 @@ class OdbcPreparedStatement(
     }
 
     private fun executePrepared() {
-        val result = api.SQLExecute(stmtHandle)
+        val result = try {
+            api.SQLExecute(stmtHandle)
+        } catch (e: Exception) {
+            connection.markConnectionDead()
+            throw SQLException(
+                "Erro de comunicação ao executar prepared statement via ODBC: ${e.message}",
+                "08S01",
+                e
+            )
+        }
         if (!OdbcApi.isSuccess(result)) {
             val diag = OdbcDiagnostics.getDiagMessage(api, OdbcApi.SQL_HANDLE_STMT.toShort(), stmtHandle)
-            throw SQLException("Erro ao executar prepared statement: $diag", "HY000")
+            val sqlState = OdbcDiagnostics.getSqlState(api, OdbcApi.SQL_HANDLE_STMT.toShort(), stmtHandle) ?: "HY000"
+
+            // Classe 08 = erros de comunicação (08S01, 08001, 08004, etc.)
+            if (sqlState.startsWith("08")) {
+                connection.markConnectionDead()
+            }
+
+            throw SQLException("Erro ao executar prepared statement: $diag", sqlState)
         }
     }
 

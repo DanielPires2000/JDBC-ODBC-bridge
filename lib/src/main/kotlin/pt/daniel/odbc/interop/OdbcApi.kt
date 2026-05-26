@@ -62,6 +62,11 @@ interface OdbcApi : Library {
         const val SQL_AUTOCOMMIT_OFF     = 0
         const val SQL_AUTOCOMMIT_ON      = 1
 
+        // Connection dead detection (ODBC 3.x)
+        const val SQL_ATTR_CONNECTION_DEAD = 1209
+        const val SQL_CD_TRUE  = 1
+        const val SQL_CD_FALSE = 0
+
         // SQLGetInfo identifiers
         const val SQL_DBMS_NAME    = 17
         const val SQL_DBMS_VER     = 18
