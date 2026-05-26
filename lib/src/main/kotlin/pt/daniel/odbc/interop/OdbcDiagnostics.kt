@@ -31,7 +31,7 @@ object OdbcDiagnostics {
      * @return Mensagem formatada com SQLSTATE e texto, ou mensagem genérica se não houver diagnóstico.
      */
     fun getDiagMessage(api: OdbcApi, handleType: Short, handle: Pointer?): String {
-        if (handle == null) return "Sem informação de diagnóstico (handle nulo)."
+        if (handle == null) return pt.daniel.odbc.Messages.get("error.diag.handle.null")
 
         val sqlState = ByteArray(MAX_SQLSTATE_LENGTH)
         val nativeError = IntByReference()
@@ -47,11 +47,11 @@ object OdbcDiagnostics {
                 textLength
             )
         } catch (e: Exception) {
-            return "Não foi possível obter diagnóstico ODBC: ${e.message}"
+            return pt.daniel.odbc.Messages.get("error.diag.failed", e.message)
         }
 
         if (!OdbcApi.isSuccess(result)) {
-            return "Sem informação de diagnóstico disponível."
+            return pt.daniel.odbc.Messages.get("error.diag.unavailable")
         }
 
         val charset = java.nio.charset.Charset.forName("windows-1252")
@@ -59,7 +59,7 @@ object OdbcDiagnostics {
         val message = String(messageText, 0, textLength.value.toInt().coerceAtLeast(0), charset).trim('\u0000')
         val errorCode = nativeError.value
 
-        return "[$state] (Erro nativo: $errorCode) $message"
+        return "[$state] (Native Error: $errorCode) $message"
     }
 
     /**
@@ -129,7 +129,7 @@ object OdbcDiagnostics {
             val message = String(messageText, 0, textLength.value.toInt().coerceAtLeast(0), charset).trim('\u0000')
             val errorCode = nativeError.value
 
-            messages.add("[$state] (Erro nativo: $errorCode) $message")
+            messages.add("[$state] (Native Error: $errorCode) $message")
             recNumber++
 
             // Limite de segurança para evitar loops infinitos

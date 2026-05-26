@@ -44,7 +44,7 @@ class OdbcConnection(
 
     override fun prepareStatement(sql: String?): PreparedStatement {
         checkNotClosed()
-        requireNotNull(sql) { "O SQL não pode ser nulo" }
+        requireNotNull(sql) { pt.daniel.odbc.Messages.get("error.connection.sql.null") }
         return OdbcPreparedStatement(this, api, allocateStatementHandle(), sql, charset)
     }
 
@@ -75,7 +75,7 @@ class OdbcConnection(
         )
         if (!OdbcApi.isSuccess(result)) {
             val diag = OdbcDiagnostics.getDiagMessage(api, OdbcApi.SQL_HANDLE_DBC.toShort(), connectionHandle)
-            throw SQLException("Não foi possível alterar autoCommit: $diag")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.connection.autocommit.change", diag))
         }
         this.autoCommit = autoCommit
     }
@@ -84,7 +84,7 @@ class OdbcConnection(
 
     override fun commit() {
         checkNotClosed()
-        if (autoCommit) throw SQLException("Não é possível fazer commit em modo autoCommit")
+        if (autoCommit) throw SQLException(pt.daniel.odbc.Messages.get("error.connection.autocommit.commit"))
         val result = api.SQLEndTran(
             OdbcApi.SQL_HANDLE_DBC.toShort(),
             connectionHandle,
@@ -92,13 +92,13 @@ class OdbcConnection(
         )
         if (!OdbcApi.isSuccess(result)) {
             val diag = OdbcDiagnostics.getDiagMessage(api, OdbcApi.SQL_HANDLE_DBC.toShort(), connectionHandle)
-            throw SQLException("Erro ao fazer commit: $diag")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.connection.commit", diag))
         }
     }
 
     override fun rollback() {
         checkNotClosed()
-        if (autoCommit) throw SQLException("Não é possível fazer rollback em modo autoCommit")
+        if (autoCommit) throw SQLException(pt.daniel.odbc.Messages.get("error.connection.autocommit.rollback"))
         val result = api.SQLEndTran(
             OdbcApi.SQL_HANDLE_DBC.toShort(),
             connectionHandle,
@@ -106,12 +106,12 @@ class OdbcConnection(
         )
         if (!OdbcApi.isSuccess(result)) {
             val diag = OdbcDiagnostics.getDiagMessage(api, OdbcApi.SQL_HANDLE_DBC.toShort(), connectionHandle)
-            throw SQLException("Erro ao fazer rollback: $diag")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.connection.rollback", diag))
         }
     }
 
     override fun rollback(savepoint: Savepoint?) {
-        throw SQLFeatureNotSupportedException("Savepoints não suportados neste driver")
+        throw SQLFeatureNotSupportedException(pt.daniel.odbc.Messages.get("error.connection.savepoints"))
     }
 
     // --- DatabaseMetaData ---
@@ -181,9 +181,9 @@ class OdbcConnection(
     override fun setHoldability(holdability: Int) {}
     override fun getHoldability(): Int = ResultSet.CLOSE_CURSORS_AT_COMMIT
 
-    override fun setSavepoint(): Savepoint = throw SQLFeatureNotSupportedException("Savepoints não suportados")
-    override fun setSavepoint(name: String?): Savepoint = throw SQLFeatureNotSupportedException("Savepoints não suportados")
-    override fun releaseSavepoint(savepoint: Savepoint?) = throw SQLFeatureNotSupportedException("Savepoints não suportados")
+    override fun setSavepoint(): Savepoint = throw SQLFeatureNotSupportedException(pt.daniel.odbc.Messages.get("error.connection.savepoints"))
+    override fun setSavepoint(name: String?): Savepoint = throw SQLFeatureNotSupportedException(pt.daniel.odbc.Messages.get("error.connection.savepoints"))
+    override fun releaseSavepoint(savepoint: Savepoint?) = throw SQLFeatureNotSupportedException(pt.daniel.odbc.Messages.get("error.connection.savepoints"))
 
     override fun createClob(): Clob = throw SQLFeatureNotSupportedException()
     override fun createBlob(): Blob = throw SQLFeatureNotSupportedException()
@@ -200,7 +200,7 @@ class OdbcConnection(
     override fun createStruct(typeName: String?, attributes: Array<out Any>?): Struct =
         throw SQLFeatureNotSupportedException()
 
-    override fun prepareCall(sql: String?): CallableStatement = throw SQLFeatureNotSupportedException("CallableStatement não suportado")
+    override fun prepareCall(sql: String?): CallableStatement = throw SQLFeatureNotSupportedException(pt.daniel.odbc.Messages.get("error.connection.callable"))
     override fun prepareCall(sql: String?, resultSetType: Int, resultSetConcurrency: Int): CallableStatement = throw SQLFeatureNotSupportedException()
     override fun prepareCall(sql: String?, resultSetType: Int, resultSetConcurrency: Int, resultSetHoldability: Int): CallableStatement = throw SQLFeatureNotSupportedException()
 
@@ -223,11 +223,11 @@ class OdbcConnection(
         val result = try {
             api.SQLAllocHandle(OdbcApi.SQL_HANDLE_STMT.toShort(), connectionHandle, stmtPtr)
         } catch (e: Exception) {
-            throw SQLException("Erro de comunicação ao criar Statement ODBC: ${e.message}", e)
+            throw SQLException(pt.daniel.odbc.Messages.get("error.connection.stmt.alloc.communication", e.message), e)
         }
         if (!OdbcApi.isSuccess(result)) {
             val diagMsg = OdbcDiagnostics.getDiagMessage(api, OdbcApi.SQL_HANDLE_DBC.toShort(), connectionHandle)
-            throw SQLException("ODBC não conseguiu alocar Statement (Código: $result). $diagMsg")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.connection.stmt.alloc.failed", result, diagMsg))
         }
         return stmtPtr.value
     }
@@ -242,9 +242,9 @@ class OdbcConnection(
     }
 
     private fun checkNotClosed() {
-        if (closed) throw SQLException("Connection já foi fechada", "08003")
+        if (closed) throw SQLException(pt.daniel.odbc.Messages.get("error.connection.closed"), "08003")
         if (connectionDead) throw SQLException(
-            "A conexão foi perdida (server disconnect). Reconecte.", "08S01"
+            pt.daniel.odbc.Messages.get("error.connection.dead"), "08S01"
         )
     }
 }

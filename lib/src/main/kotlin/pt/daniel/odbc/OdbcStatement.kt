@@ -67,14 +67,14 @@ class OdbcStatement(
     override fun getUpdateCount(): Int = lastUpdateCount
 
     private fun execDirect(sql: String?) {
-        requireNotNull(sql) { "O SQL não pode ser nulo" }
+        requireNotNull(sql) { pt.daniel.odbc.Messages.get("error.statement.sql.null") }
         val result =
                 try {
                     api.SQLExecDirect(stmtHandle, sql, sql.length)
                 } catch (e: Exception) {
                     connection.markConnectionDead()
                     throw SQLException(
-                            "Erro de comunicação ao executar SQL via ODBC: ${e.message}",
+                            pt.daniel.odbc.Messages.get("error.statement.exec.communication", e.message),
                             "08S01",
                             e
                     )
@@ -98,7 +98,7 @@ class OdbcStatement(
                 connection.markConnectionDead()
             }
 
-            throw SQLException("Erro ao executar SQL (Código: $result). $diagMsg", sqlState)
+            throw SQLException(pt.daniel.odbc.Messages.get("error.statement.exec.failed", result, diagMsg), sqlState)
         }
     }
 
@@ -109,7 +109,7 @@ class OdbcStatement(
     }
 
     private fun checkNotClosed() {
-        if (closed) throw SQLException("Statement já foi fechado")
+        if (closed) throw SQLException(pt.daniel.odbc.Messages.get("error.statement.closed"))
     }
 
     // --- Stubs ---

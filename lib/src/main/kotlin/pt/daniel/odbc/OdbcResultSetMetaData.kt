@@ -28,7 +28,7 @@ class OdbcResultSetMetaData(
 
     private fun getCol(column: Int): ColumnInfo {
         if (column < 1 || column > columns.size) {
-            throw SQLException("Índice de coluna inválido: $column (Total: ${columns.size})")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.metadata.invalid.column", column, columns.size))
         }
         return columns[column - 1]
     }

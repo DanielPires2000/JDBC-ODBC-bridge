@@ -4,6 +4,7 @@ import com.sun.jna.Pointer
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.ShortByReference
 import pt.daniel.odbc.interop.OdbcApi
+import pt.daniel.odbc.interop.OdbcDiagnostics
 import java.io.InputStream
 import java.io.Reader
 import java.math.BigDecimal
@@ -53,7 +54,23 @@ class OdbcResultSet(
             }
             OdbcApi.SQL_NO_DATA -> false
             else -> {
-                throw SQLException("Erro ao avançar cursor ODBC (Código: $result)")
+                val diagMsg = OdbcDiagnostics.getDiagMessage(
+                    api, OdbcApi.SQL_HANDLE_STMT.toShort(), stmtHandle
+                )
+                val sqlState = OdbcDiagnostics.getSqlState(
+                    api, OdbcApi.SQL_HANDLE_STMT.toShort(), stmtHandle
+                ) ?: "HY000"
+
+                // Classe 08 = erros de comunicação — marcar conexão como morta
+                if (sqlState.startsWith("08")) {
+                    val conn = statement.connection
+                    if (conn is OdbcConnection) conn.markConnectionDead()
+                }
+
+                throw SQLException(
+                    pt.daniel.odbc.Messages.get("error.resultset.fetch", result, diagMsg),
+                    sqlState
+                )
             }
         }
     }
@@ -99,8 +116,8 @@ class OdbcResultSet(
 
     override fun getString(columnIndex: Int): String? {
         checkNotClosed()
-        val data = currentRowData ?: throw SQLException("Nenhum dado na linha atual")
-        if (columnIndex < 1 || columnIndex > columnCount) throw SQLException("Índice de coluna inválido: $columnIndex")
+        val data = currentRowData ?: throw SQLException(pt.daniel.odbc.Messages.get("error.resultset.no.data"))
+        if (columnIndex < 1 || columnIndex > columnCount) throw SQLException(pt.daniel.odbc.Messages.get("error.resultset.invalid.column", columnIndex))
         
         val value = data[columnIndex - 1]
         wasNull = (value == null)
@@ -180,7 +197,7 @@ class OdbcResultSet(
     // --- Metadata ---
 
     override fun findColumn(columnLabel: String?): Int {
-        requireNotNull(columnLabel) { "Column label nao pode ser nulo" }
+        requireNotNull(columnLabel) { pt.daniel.odbc.Messages.get("error.resultset.column.null") }
         val key = columnLabel.uppercase()
         // Tentar nome directo
         columnNames[key]?.let { return it }
@@ -188,7 +205,7 @@ class OdbcResultSet(
         COLUMN_ALIASES[key]?.let { alias ->
             columnNames[alias]?.let { return it }
         }
-        throw SQLException("Coluna '$columnLabel' nao encontrada")
+        throw SQLException(pt.daniel.odbc.Messages.get("error.resultset.column.notfound", columnLabel))
     }
 
     companion object {
@@ -232,7 +249,7 @@ class OdbcResultSet(
     // --- Helpers privados ---
 
     private fun checkNotClosed() {
-        if (closed) throw SQLException("ResultSet já foi fechado")
+        if (closed) throw SQLException(pt.daniel.odbc.Messages.get("error.resultset.closed"))
     }
 
     private fun fetchColumnCount(): Int {

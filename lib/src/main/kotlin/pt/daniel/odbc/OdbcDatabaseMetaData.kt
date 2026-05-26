@@ -66,7 +66,7 @@ class OdbcDatabaseMetaData(
         val stmtPtr = com.sun.jna.ptr.PointerByReference()
         val allocResult = api.SQLAllocHandle(OdbcApi.SQL_HANDLE_STMT.toShort(), connectionHandle, stmtPtr)
         if (!OdbcApi.isSuccess(allocResult)) {
-            throw SQLException("Não foi possível alocar Statement para getTables")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.dbmeta.tables.alloc"))
         }
         val hstmt = stmtPtr.value
 
@@ -80,7 +80,7 @@ class OdbcDatabaseMetaData(
         )
         if (!OdbcApi.isSuccess(result)) {
             api.SQLFreeHandle(OdbcApi.SQL_HANDLE_STMT.toShort(), hstmt)
-            throw SQLException("SQLTables falhou (Código: $result)")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.dbmeta.tables.failed", result))
         }
 
         // Cria um Statement wrapper temporário para gerir o handle
@@ -92,7 +92,7 @@ class OdbcDatabaseMetaData(
         val stmtPtr = com.sun.jna.ptr.PointerByReference()
         val allocResult = api.SQLAllocHandle(OdbcApi.SQL_HANDLE_STMT.toShort(), connectionHandle, stmtPtr)
         if (!OdbcApi.isSuccess(allocResult)) {
-            throw SQLException("Não foi possível alocar Statement para getColumns")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.dbmeta.columns.alloc"))
         }
         val hstmt = stmtPtr.value
 
@@ -105,7 +105,7 @@ class OdbcDatabaseMetaData(
         )
         if (!OdbcApi.isSuccess(result)) {
             api.SQLFreeHandle(OdbcApi.SQL_HANDLE_STMT.toShort(), hstmt)
-            throw SQLException("SQLColumns falhou (Código: $result)")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.dbmeta.columns.failed", result))
         }
 
         val wrapperStmt = OdbcStatement(connection, api, hstmt, charset)

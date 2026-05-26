@@ -44,7 +44,7 @@ class OdbcPreparedStatement(
         val result = api.SQLPrepare(stmtHandle, sql, sql.length)
         if (!OdbcApi.isSuccess(result)) {
             val diag = OdbcDiagnostics.getDiagMessage(api, OdbcApi.SQL_HANDLE_STMT.toShort(), stmtHandle)
-            throw SQLException("Erro ao preparar SQL: $diag", "42000")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.prepare.failed", diag), "42000")
         }
     }
 
@@ -212,7 +212,7 @@ class OdbcPreparedStatement(
                 )
                 if (!OdbcApi.isSuccess(result)) {
                     val diag = OdbcDiagnostics.getDiagMessage(api, OdbcApi.SQL_HANDLE_STMT.toShort(), stmtHandle)
-                    throw SQLException("Erro ao ligar parâmetro NULL #$index: $diag")
+                    throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.bind.null", index, diag))
                 }
             } else {
                 val bytes = value.toByteArray(charset)
@@ -234,7 +234,7 @@ class OdbcPreparedStatement(
                 )
                 if (!OdbcApi.isSuccess(result)) {
                     val diag = OdbcDiagnostics.getDiagMessage(api, OdbcApi.SQL_HANDLE_STMT.toShort(), stmtHandle)
-                    throw SQLException("Erro ao ligar parâmetro #$index ('$value'): $diag")
+                    throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.bind.value", index, value, diag))
                 }
             }
         }
@@ -246,7 +246,7 @@ class OdbcPreparedStatement(
         } catch (e: Exception) {
             connection.markConnectionDead()
             throw SQLException(
-                "Erro de comunicação ao executar prepared statement via ODBC: ${e.message}",
+                pt.daniel.odbc.Messages.get("error.prepstmt.exec.communication", e.message),
                 "08S01",
                 e
             )
@@ -260,7 +260,7 @@ class OdbcPreparedStatement(
                 connection.markConnectionDead()
             }
 
-            throw SQLException("Erro ao executar prepared statement: $diag", sqlState)
+            throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.exec.failed", diag), sqlState)
         }
     }
 
@@ -276,14 +276,14 @@ class OdbcPreparedStatement(
     }
 
     private fun checkNotClosed() {
-        if (closed) throw SQLException("PreparedStatement já foi fechado")
+        if (closed) throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.closed"))
     }
 
     // --- Métodos de Statement herdados ---
 
-    override fun executeQuery(sql: String?): ResultSet = throw SQLException("Use executeQuery() sem parâmetros num PreparedStatement")
-    override fun executeUpdate(sql: String?): Int = throw SQLException("Use executeUpdate() sem parâmetros num PreparedStatement")
-    override fun execute(sql: String?): Boolean = throw SQLException("Use execute() sem parâmetros num PreparedStatement")
+    override fun executeQuery(sql: String?): ResultSet = throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.use.no.params", "executeQuery"))
+    override fun executeUpdate(sql: String?): Int = throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.use.no.params", "executeUpdate"))
+    override fun execute(sql: String?): Boolean = throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.use.no.params", "execute"))
 
     override fun getMetaData(): ResultSetMetaData? = null
     override fun getParameterMetaData(): ParameterMetaData = throw SQLFeatureNotSupportedException()
@@ -349,12 +349,12 @@ class OdbcPreparedStatement(
     override fun executeBatch(): IntArray = intArrayOf()
     override fun getMoreResults(current: Int): Boolean = false
     override fun getGeneratedKeys(): ResultSet? = null
-    override fun executeUpdate(sql: String?, a: Int): Int { throw SQLException("Use executeUpdate() sem parâmetros") }
-    override fun executeUpdate(sql: String?, a: IntArray?): Int { throw SQLException("Use executeUpdate() sem parâmetros") }
-    override fun executeUpdate(sql: String?, a: kotlin.Array<out String>?): Int { throw SQLException("Use executeUpdate() sem parâmetros") }
-    override fun execute(sql: String?, a: Int): Boolean { throw SQLException("Use execute() sem parâmetros") }
-    override fun execute(sql: String?, a: IntArray?): Boolean { throw SQLException("Use execute() sem parâmetros") }
-    override fun execute(sql: String?, a: kotlin.Array<out String>?): Boolean { throw SQLException("Use execute() sem parâmetros") }
+    override fun executeUpdate(sql: String?, a: Int): Int { throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.use.no.params", "executeUpdate")) }
+    override fun executeUpdate(sql: String?, a: IntArray?): Int { throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.use.no.params", "executeUpdate")) }
+    override fun executeUpdate(sql: String?, a: kotlin.Array<out String>?): Int { throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.use.no.params", "executeUpdate")) }
+    override fun execute(sql: String?, a: Int): Boolean { throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.use.no.params", "execute")) }
+    override fun execute(sql: String?, a: IntArray?): Boolean { throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.use.no.params", "execute")) }
+    override fun execute(sql: String?, a: kotlin.Array<out String>?): Boolean { throw SQLException(pt.daniel.odbc.Messages.get("error.prepstmt.use.no.params", "execute")) }
     override fun getResultSetHoldability(): Int = ResultSet.CLOSE_CURSORS_AT_COMMIT
     override fun setPoolable(poolable: Boolean) {}
     override fun isPoolable(): Boolean = false

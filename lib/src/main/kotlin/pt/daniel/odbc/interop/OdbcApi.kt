@@ -91,8 +91,8 @@ interface OdbcApi : Library {
         const val SQL_NULLABLE_UNKNOWN = 2
 
         /**
-         * Tenta carregar a biblioteca nativa.
-         * Lança [OdbcUnavailableException] se a DLL/SO não estiver presente.
+         * Tries to load the native ODBC library.
+         * Throws [OdbcUnavailableException] if the DLL/SO is not present.
          */
         fun load(): OdbcApi {
             val libName = if (System.getProperty("os.name").contains("Windows", ignoreCase = true))
@@ -101,8 +101,7 @@ interface OdbcApi : Library {
                 Native.load(libName, OdbcApi::class.java)
             } catch (e: UnsatisfiedLinkError) {
                 throw OdbcUnavailableException(
-                    "Não foi possível carregar a biblioteca ODBC ('$libName'). " +
-                    "Verifique se o ODBC está instalado no sistema.", e
+                    pt.daniel.odbc.Messages.get("error.odbc.load", libName), e
                 )
             }
         }

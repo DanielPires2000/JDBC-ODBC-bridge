@@ -77,7 +77,7 @@ class OdbcDriver internal constructor(
 
         var connectionString = url.substring(URL_PREFIX.length).trim()
         if (connectionString.isBlank()) {
-            throw SQLException("A string de conexão ODBC não pode ser vazia (URL: $url)")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.driver.connection.empty", url))
         }
 
         // Se a string não contiver '=', assume que é apenas o nome do DSN
@@ -109,8 +109,7 @@ class OdbcDriver internal constructor(
             api
         } catch (e: OdbcUnavailableException) {
             throw SQLException(
-                "O driver ODBC nativo não está disponível neste sistema. " +
-                "Verifique se o ODBC está instalado. Detalhe: ${e.message}",
+                pt.daniel.odbc.Messages.get("error.driver.odbc.unavailable", e.message),
                 "08001", // SQLSTATE: connection exception
                 e
             )
@@ -133,7 +132,7 @@ class OdbcDriver internal constructor(
 
     override fun getPropertyInfo(url: String?, info: Properties?): Array<DriverPropertyInfo> {
         val charsetProp = DriverPropertyInfo("charset", info?.getProperty("charset") ?: "windows-1252")
-        charsetProp.description = "Codificação de caracteres usada pelo driver nativo ODBC (ex: windows-1252, UTF-8, ISO-8859-1)"
+        charsetProp.description = pt.daniel.odbc.Messages.get("prop.charset.desc")
         charsetProp.required = false
         charsetProp.choices = arrayOf("windows-1252", "UTF-8", "ISO-8859-1", "US-ASCII")
 
@@ -158,11 +157,11 @@ class OdbcDriver internal constructor(
         val allocResult = runCatching {
             odbcApi.SQLAllocHandle(OdbcApi.SQL_HANDLE_ENV.toShort(), null, envPtr)
         }.getOrElse {
-            throw SQLException("Falha de comunicação ao alocar ambiente ODBC: ${it.message}", it)
+            throw SQLException(pt.daniel.odbc.Messages.get("error.driver.env.alloc", it.message), it)
         }
 
         if (allocResult.toInt() !in listOf(OdbcApi.SQL_SUCCESS, OdbcApi.SQL_SUCCESS_WITH_INFO)) {
-            throw SQLException("ODBC não conseguiu alocar ambiente (Código: $allocResult)")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.driver.env.failed", allocResult))
         }
 
         val env = envPtr.value
@@ -177,7 +176,7 @@ class OdbcDriver internal constructor(
             )
         }.getOrElse {
             odbcApi.SQLFreeHandle(OdbcApi.SQL_HANDLE_ENV.toShort(), env)
-            throw SQLException("Falha ao definir versão ODBC: ${it.message}", it)
+            throw SQLException(pt.daniel.odbc.Messages.get("error.driver.env.version", it.message), it)
         }
 
         return env
@@ -196,11 +195,11 @@ class OdbcDriver internal constructor(
         val allocResult = runCatching {
             odbcApi.SQLAllocHandle(OdbcApi.SQL_HANDLE_DBC.toShort(), env, connPtr)
         }.getOrElse {
-            throw SQLException("Falha de comunicação ao alocar conexão ODBC: ${it.message}", it)
+            throw SQLException(pt.daniel.odbc.Messages.get("error.driver.conn.alloc", it.message), it)
         }
 
         if (allocResult.toInt() !in listOf(OdbcApi.SQL_SUCCESS, OdbcApi.SQL_SUCCESS_WITH_INFO)) {
-            throw SQLException("ODBC não conseguiu alocar conexão (Código: $allocResult)")
+            throw SQLException(pt.daniel.odbc.Messages.get("error.driver.conn.failed", allocResult))
         }
 
         val hdbc = connPtr.value
@@ -214,7 +213,7 @@ class OdbcDriver internal constructor(
             )
         }.getOrElse {
             odbcApi.SQLFreeHandle(OdbcApi.SQL_HANDLE_DBC.toShort(), hdbc)
-            throw SQLException("Falha de comunicação ao ligar ao ODBC: ${it.message}", it)
+            throw SQLException(pt.daniel.odbc.Messages.get("error.driver.conn.connect", it.message), it)
         }
 
         if (connectResult.toInt() !in listOf(OdbcApi.SQL_SUCCESS, OdbcApi.SQL_SUCCESS_WITH_INFO)) {
@@ -224,7 +223,7 @@ class OdbcDriver internal constructor(
             )
             odbcApi.SQLFreeHandle(OdbcApi.SQL_HANDLE_DBC.toShort(), hdbc)
             throw SQLException(
-                "ODBC recusou a conexão (Código: $connectResult). $diagMsg",
+                pt.daniel.odbc.Messages.get("error.driver.conn.refused", connectResult, diagMsg),
                 "08001"
             )
         }
